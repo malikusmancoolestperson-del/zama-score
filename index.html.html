@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Zama Leaderboard Score Calculator</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#f6f8fb;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    .card{background:#fff;padding:20px;border-radius:10px;box-shadow:0 6px 30px rgba(20,30,60,.08);width:100%;max-width:640px}
+    h2{margin:0 0 12px;font-size:20px}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    input{flex:1;min-width:120px;padding:10px;border-radius:6px;border:1px solid #e3e8ef}
+    button{padding:10px 16px;border-radius:8px;border:0;background:#0b74ff;color:#fff;cursor:pointer}
+    button:active{transform:translateY(1px)}
+    #result{margin-top:14px;background:#f3f7ff;padding:12px;border-radius:8px;border:1px solid #e6efff}
+    label{font-size:12px;color:#6b7280;margin-bottom:6px;display:block}
+    .small{font-size:13px;color:#4b5563}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Zama Score Calculator (demo)</h2>
+    <div class="small">enter estimated stats (or leave defaults) → click calculate</div>
+    <div style="height:12px"></div>
+
+    <div class="row">
+      <input id="username" placeholder="twitter/x handle (e.g., @you)" />
+      <input id="posts" type="number" placeholder="posts (e.g., 20)" />
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="impressions" type="number" placeholder="impressions (e.g., 65000)" />
+      <input id="likes" type="number" placeholder="likes (e.g., 700)" />
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="retweets" type="number" placeholder="retweets (e.g., 150)" />
+      <input id="quotes" type="number" placeholder="quotes (e.g., 100)" />
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="smartFollowers" type="number" placeholder="smart followers (e.g., 400)" />
+      <input id="smartEngagement" type="number" placeholder="smart engagement (e.g., 120)" />
+    </div>
+
+    <div style="height:12px"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="calculateScore()">Calculate Score</button>
+      <button onclick="fillExample()">Fill example</button>
+    </div>
+
+    <div id="result">results will appear here</div>
+  </div>
+
+  <script>
+    function fillExample(){
+      document.getElementById('username').value='@example';
+      document.getElementById('posts').value=20;
+      document.getElementById('impressions').value=65000;
+      document.getElementById('likes').value=700;
+      document.getElementById('retweets').value=150;
+      document.getElementById('quotes').value=100;
+      document.getElementById('smartFollowers').value=400;
+      document.getElementById('smartEngagement').value=120;
+    }
+
+    function calculateScore(){
+      const username = document.getElementById('username').value || '@user';
+      const posts = parseInt(document.getElementById('posts').value) || 20;
+      const impressions = parseInt(document.getElementById('impressions').value) || 65000;
+      const likes = parseInt(document.getElementById('likes').value) || 700;
+      const retweets = parseInt(document.getElementById('retweets').value) || 150;
+      const quotes = parseInt(document.getElementById('quotes').value) || 100;
+      const smartFollowers = parseInt(document.getElementById('smartFollowers').value) || 400;
+      const smartEngagement = parseInt(document.getElementById('smartEngagement').value) || 120;
+
+      if(posts < 2 || impressions <= 0){
+        document.getElementById('result').innerText = `${username} is ineligible (need 2+ posts and >0 impressions).`;
+        return;
+      }
+
+      // v0.1 formula
+      const SRM = Math.min(1, impressions / 100000);
+      const SF = Math.min(Math.log10(smartFollowers + 1), 3);
+      const IMP = Math.sqrt(impressions);
+      const qW = 4 + 2 * SRM;
+      const ENG = likes + 3 * retweets + qW * quotes;
+      const ER = (likes + retweets + quotes) / impressions * 100;
+      const EngObs = Math.max(ENG, ER * impressions / 100);
+      const ER_cap = 0.01 + 0.04 * SRM;
+      const EffEng = Math.min(EngObs, impressions * ER_cap);
+      const Clamp = EffEng / Math.max(EngObs, 1);
+      const SENG = Math.min(smartEngagement, 0.5 * EffEng);
+      const QE = Math.min(Math.log(1 + impressions / Math.max(smartFollowers,1)), 2) * SRM;
+      const postMult = 1 + 0.02 * Math.min(posts, 20);
+      const erMult = 0.90 + 2 * Math.min(ER / 100, 0.05);
+
+      if(ER > 20){
+        document.getElementById('result').innerText = `${username} disqualified: ER (${ER.toFixed(2)}%) > 20%.`;
+        return;
+      }
+
+      let penalty = 1;
+      if(ER > 10 && impressions < 50000) penalty = 0.3;
+
+      const engageBlock = ((ENG * 0.7) * Clamp + (SENG * 150)) * Math.pow(SRM, 1.5);
+      const baseScore = (SF * 500) + (IMP * 10) + engageBlock + (QE * 120);
+      const finalScore = Math.round(baseScore * erMult * postMult * penalty);
+
+      const msg = `
+${username} score: ${finalScore}
+impressions: ${impressions} | ER: ${ER.toFixed(2)}% | posts: ${posts}
+note: score ~15k+ likely in top 250 (og nft), score 40k+ needed for top 100 (estimate).
+`;
+      document.getElementById('result').innerText = msg;
+    }
+  </script>
+</body>
+</html>
